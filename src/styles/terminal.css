@@ -1,0 +1,173 @@
+:root {
+  --td-bg: #0b0f0a;
+  --td-panel: #0f1710;
+  --td-green: #3ef07c;
+  --td-green-dim: #21a35a;
+  --td-amber: #f0c53e;
+  --td-red: #f0503e;
+  --td-cyan: #6ee0e0;
+  --td-fg: #d9ffe0;
+  --td-border: #1f3d29;
+  --td-font: "Courier New", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--td-bg);
+  color: var(--td-fg);
+  font-family: var(--td-font);
+}
+
+.td-crt {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(ellipse at center, #0e1a12 0%, #050805 100%);
+  overflow: hidden;
+}
+
+.td-crt::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.15),
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  z-index: 50;
+  mix-blend-mode: multiply;
+}
+
+.td-crt::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 12vw rgba(0, 0, 0, 0.75);
+  z-index: 51;
+}
+
+.td-glow {
+  text-shadow: 0 0 4px currentColor;
+}
+
+.td-scroll {
+  overflow-y: auto;
+}
+
+.td-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.td-scroll::-webkit-scrollbar-thumb {
+  background: var(--td-green-dim);
+}
+
+.td-scroll::-webkit-scrollbar-track {
+  background: var(--td-panel);
+}
+
+button.td-btn {
+  font-family: var(--td-font);
+  background: transparent;
+  border: 1px solid var(--td-green-dim);
+  color: var(--td-green);
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+button.td-btn:hover:not(:disabled) {
+  background: var(--td-green-dim);
+  color: #05100a;
+}
+
+button.td-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+button.td-btn.td-btn-amber {
+  border-color: var(--td-amber);
+  color: var(--td-amber);
+}
+
+button.td-btn.td-btn-amber:hover:not(:disabled) {
+  background: var(--td-amber);
+  color: #201400;
+}
+
+textarea.td-input,
+input.td-input {
+  font-family: var(--td-font);
+  background: #050a06;
+  color: var(--td-green);
+  border: 1px solid var(--td-border);
+  padding: 0.5rem;
+  width: 100%;
+  resize: vertical;
+}
+
+textarea.td-input:focus,
+input.td-input:focus {
+  outline: 1px solid var(--td-green);
+}
+
+pre.td-ascii {
+  color: var(--td-green);
+  line-height: 1.15;
+  white-space: pre;
+  font-size: 0.85rem;
+}
+
+.td-panel {
+  background: var(--td-panel);
+  border: 1px solid var(--td-border);
+}
+
+.td-hp-bar {
+  height: 10px;
+  background: #200;
+  border: 1px solid var(--td-border);
+  position: relative;
+}
+
+.td-hp-bar-fill {
+  height: 100%;
+  background: var(--td-green);
+  transition: width 0.2s ease;
+}
+
+.td-flicker {
+  animation: td-flicker 6s infinite;
+}
+
+@keyframes td-flicker {
+  0%,
+  96%,
+  100% {
+    opacity: 1;
+  }
+  97% {
+    opacity: 0.85;
+  }
+  98% {
+    opacity: 1;
+  }
+}
