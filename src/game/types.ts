@@ -1,4 +1,4 @@
-export type RoomType = "combat" | "loot" | "rest" | "boss";
+export type RoomType = "combat" | "loot" | "rest" | "boss" | "tutorial";
 
 /** Gear is intentionally loose (dict-like) — players merge/inspect it in Python. */
 export interface Item {
@@ -50,7 +50,19 @@ export interface RestRoomData {
   heal_amount: number;
 }
 
-export type RoomPayload = CombatRoomData | LootRoomData | RestRoomData;
+/** A tutorial lesson's pass condition, checked against the live Pyodide
+ * globals after each run — same state-based philosophy as real rooms. */
+export type TutorialCheck =
+  | { kind: "always" }
+  | { kind: "var_exists"; name: string }
+  | { kind: "var_equals"; name: string; value: number }
+  | { kind: "dict_key_le"; name: string; key: string; value: number };
+
+export interface TutorialRoomData {
+  check: TutorialCheck;
+}
+
+export type RoomPayload = CombatRoomData | LootRoomData | RestRoomData | TutorialRoomData;
 
 export interface RoomData {
   id: string;
@@ -60,6 +72,9 @@ export interface RoomData {
   ascii: string;
   flavor: string;
   hint: string;
+  /** Tutorial rooms prefill the console with this so lessons are
+   * observe-and-run, not blank-terminal — real rooms leave it unset. */
+  starterCode?: string;
   data: RoomPayload;
   resolved: boolean;
 }

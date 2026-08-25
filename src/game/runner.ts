@@ -1,6 +1,14 @@
 import { loadPyodide, type PyodideInterface } from "pyodide";
 import { useGameStore } from "./store";
-import type { CombatRoomData, Item, LootRoomData, PlayerState, RoomData } from "./types";
+import { tutorialLockedMessage } from "./tutorial";
+import type {
+  CombatRoomData,
+  Item,
+  LootRoomData,
+  PlayerState,
+  RoomData,
+  TutorialRoomData,
+} from "./types";
 
 let pyodidePromise: Promise<PyodideInterface> | null = null;
 let stdoutSink: (line: string) => void = () => {};
@@ -36,6 +44,8 @@ function doorLockedMessage(room: RoomData): string {
       return "The door won't budge — you haven't forged anything yet. Assign your merged dict to crafted_item.";
     case "rest":
       return "The door won't budge. Something about this room still feels unfinished.";
+    case "tutorial":
+      return tutorialLockedMessage(useGameStore.getState().tutorialIndex);
   }
 }
 
@@ -76,6 +86,28 @@ function checkResolved(room: RoomData, pyodide: PyodideInterface): boolean {
     }
     case "rest":
       return true;
+    case "tutorial": {
+      const check = (room.data as TutorialRoomData).check;
+      switch (check.kind) {
+        case "always":
+          return true;
+        case "var_exists": {
+          const v = pyodide.globals.get(check.name);
+          return v !== undefined;
+        }
+        case "var_equals": {
+          const v = pyodide.globals.get(check.name);
+          return v === check.value;
+        }
+        case "dict_key_le": {
+          const d = pyodide.globals.get(check.name);
+          if (!d) return false;
+          const v = d.get(check.key);
+          d.destroy();
+          return typeof v === "number" && v <= check.value;
+        }
+      }
+    }
   }
 }
 

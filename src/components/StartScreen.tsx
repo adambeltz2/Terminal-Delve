@@ -2,7 +2,10 @@ import { useGameStore } from "../game/store";
 
 export function StartScreen() {
   const startRun = useGameStore((s) => s.startRun);
+  const startTutorial = useGameStore((s) => s.startTutorial);
+  const skipTutorial = useGameStore((s) => s.skipTutorial);
   const deathCount = useGameStore((s) => s.deathCount);
+  const tutorialDone = useGameStore((s) => s.tutorialDone);
   const journalCount = useGameStore((s) => s.journal.length);
   const scriptCount = useGameStore((s) => s.scripts.length);
 
@@ -36,9 +39,35 @@ export function StartScreen() {
         Permadeath resets your character — your Scribe&apos;s Journal and
         saved scripts survive.
       </p>
-      <button className="td-btn td-glow" style={{ fontSize: "1.1rem" }} onClick={startRun}>
-        {deathCount > 0 ? "Descend Again" : "Begin the Delve"}
-      </button>
+
+      {tutorialDone ? (
+        <>
+          <button className="td-btn td-glow" style={{ fontSize: "1.1rem" }} onClick={startRun}>
+            {deathCount > 0 ? "Descend Again" : "Begin the Delve"}
+          </button>
+          <button
+            className="td-btn"
+            style={{ fontSize: "0.8rem", padding: "0.35rem 0.8rem" }}
+            onClick={startTutorial}
+          >
+            replay python tutorial
+          </button>
+        </>
+      ) : (
+        <>
+          <button className="td-btn td-glow" style={{ fontSize: "1.1rem" }} onClick={startTutorial}>
+            Start Python Tutorial
+          </button>
+          <button
+            className="td-btn"
+            style={{ fontSize: "0.8rem", padding: "0.35rem 0.8rem" }}
+            onClick={skipTutorial}
+          >
+            skip — I already know Python
+          </button>
+        </>
+      )}
+
       <div style={{ display: "flex", gap: "2rem", fontSize: "0.8rem", opacity: 0.7 }}>
         <span>deaths: {deathCount}</span>
         <span>journal entries: {journalCount}</span>

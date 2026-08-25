@@ -4,6 +4,16 @@ A web-based, turn-based roguelike dungeon crawler with retro ASCII graphics
 that teaches real Python by making you write it. Every room is a puzzle you
 solve with actual code, executed instantly in your browser.
 
+## Python tutorial
+
+First visit defaults to a 7-lesson walkthrough before the real delve —
+print, variables, dict access, if/else, a worked while-loop example, then
+one lesson where you write a while loop from scratch (the exact shape
+depth-1 combat needs) with nothing pre-solved. Skippable at any point
+("I already know Python" on the start screen, or "skip to the delve"
+mid-lesson) and replayable later once it's been completed. `tutorialDone`
+persists to `localStorage` so it only defaults to showing once.
+
 ## Core loop
 
 - The dungeon is a sequence of procedurally rolled rooms (combat, loot,
@@ -80,10 +90,12 @@ src/
     types.ts     room/player/item/enemy shapes
     data.ts      enemy templates, item/rune tables, ascii art
     dungeon.ts   the room roll table + hint text per room type
+    tutorial.ts  the 7 onboarding lessons + their pass conditions
     store.ts     zustand store: run state, journal, saved scripts
     runner.ts    Pyodide bootstrapping, globals bridging, door.open()/equip()
     hooks.ts     usePyodideBoot — loads the runtime when a run starts
-  components/    CRT-styled UI (terminal, room view, journal, inventory)
+  components/    CRT-styled UI (terminal, room view, journal, inventory,
+                 tutorial screen)
 ```
 
 ## Current scope (MVP)
