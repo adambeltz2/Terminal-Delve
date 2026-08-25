@@ -64,6 +64,14 @@ npm run build     # production build in dist/
 npm run preview   # serve the production build locally
 ```
 
+## Deploying to GitHub Pages
+
+`.github/workflows/deploy.yml` builds and publishes `dist/` on every push
+to `main` (also runnable manually via the Actions tab). One-time setup on
+the repo, if it hasn't been done: **Settings → Pages → Build and
+deployment → Source: "GitHub Actions"**. After that the live site tracks
+`main` automatically — no manual `dist/` pushes needed.
+
 ## Project layout
 
 ```
