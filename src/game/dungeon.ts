@@ -32,6 +32,9 @@ function rollRoomType(depth: number): RoomType {
   return "rest";
 }
 
+const GEAR_REMINDER =
+  "\n\nCarrying something better? equip(inventory[-1]) swaps it in before you fight.";
+
 function combatHint(tier: Tier): string {
   if (tier === 1) {
     return [
@@ -41,7 +44,7 @@ function combatHint(tier: Tier): string {
       "",
       ">>> if player['element'] == enemy['weakness']:",
       "...     dmg = player['base_attack'] * 2",
-    ].join("\n");
+    ].join("\n") + GEAR_REMINDER;
   }
   if (tier === 2) {
     return [
@@ -56,7 +59,7 @@ function combatHint(tier: Tier): string {
       "...     enemy['hp'] -= dmg",
       "...     if enemy['hp'] <= 0: break",
       "...     player['hp'] -= enemy['attack']",
-    ].join("\n");
+    ].join("\n") + GEAR_REMINDER;
   }
   if (tier === 3) {
     return [
@@ -71,7 +74,7 @@ function combatHint(tier: Tier): string {
       "...         foe['hp'] -= dmg",
       "...         if foe['hp'] <= 0: break",
       "...         player['hp'] -= foe['attack']",
-    ].join("\n");
+    ].join("\n") + GEAR_REMINDER;
   }
   return [
     "Several foes, each wanting the same fight loop. Writing that loop",
@@ -89,7 +92,7 @@ function combatHint(tier: Tier): string {
     "...",
     ">>> for foe in enemies:",
     "...     fight(foe)",
-  ].join("\n");
+  ].join("\n") + GEAR_REMINDER;
 }
 
 function lootHint(tier: Tier, runeCount: number): string {
@@ -108,6 +111,9 @@ function lootHint(tier: Tier, runeCount: number): string {
       "...     return item",
       "...",
       ">>> crafted_item = forge_item(base_item, rune)",
+      "",
+      "door.open() drops crafted_item into your inventory — it does NOT",
+      "auto-equip. Wield it later with equip(inventory[-1]).",
     ].join("\n");
   }
   return [
@@ -122,6 +128,9 @@ function lootHint(tier: Tier, runeCount: number): string {
     "...     crafted_item['applied_runes'].append(rune)",
     ">>> crafted_item['modifier'] = runes[0]['modifier']",
     ">>> crafted_item['value'] = sum(r['value'] for r in runes)",
+    "",
+    "door.open() drops crafted_item into your inventory — it does NOT",
+    "auto-equip. Wield it later with equip(inventory[-1]).",
   ]
     .filter(Boolean)
     .join("\n");

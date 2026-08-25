@@ -6,11 +6,21 @@ let pyodidePromise: Promise<PyodideInterface> | null = null;
 let stdoutSink: (line: string) => void = () => {};
 let stderrSink: (line: string) => void = () => {};
 
-const DOOR_BOOTSTRAP = `
+/** Minimal shape we actually use off a PyProxy dict — avoids pulling in
+ * pyodide's internal ffi types just for this. */
+interface PyDict {
+  toJs: (opts?: { dict_converter?: (entries: Iterable<[string, unknown]>) => unknown }) => unknown;
+  destroy: () => void;
+}
+
+const BOOTSTRAP = `
 class _Door:
     def open(self):
         return _open_door_bridge()
 door = _Door()
+
+def equip(item):
+    return _equip_bridge(item)
 `;
 
 function doorLockedMessage(room: RoomData): string {
@@ -89,7 +99,8 @@ async function getPyodide(): Promise<PyodideInterface> {
       stderr: (msg: string) => stderrSink(msg),
     }).then((pyodide) => {
       pyodide.globals.set("_open_door_bridge", () => handleDoorOpen(pyodide));
-      pyodide.runPython(DOOR_BOOTSTRAP);
+      pyodide.globals.set("_equip_bridge", (item: PyDict) => handleEquip(pyodide, item));
+      pyodide.runPython(BOOTSTRAP);
       return pyodide;
     });
   }
@@ -103,12 +114,12 @@ function handleDoorOpen(pyodide: PyodideInterface) {
   if (!checkResolved(room, pyodide)) {
     throw new Error(doorLockedMessage(room));
   }
-  syncPlayerFromGlobals(pyodide);
+  syncStateFromGlobals(pyodide);
   if (room.type === "loot") {
     const crafted = pyodide.globals.get("crafted_item");
     const item = crafted.toJs({ dict_converter: Object.fromEntries }) as Item;
     crafted.destroy();
-    store.applyCraftedItem(item);
+    store.addToInventory(item);
   }
   store.markRoomResolved();
   store.appendLog("system", "The door creaks open...");
@@ -122,16 +133,68 @@ function handleDoorOpen(pyodide: PyodideInterface) {
   });
 }
 
-function syncPlayerFromGlobals(pyodide: PyodideInterface) {
+/** equip(item) is only valid for something already sitting in `inventory`
+ * (matched by name — good enough since crafted item names are distinct
+ * per forge). Equipping swaps the old gear back into the bag. */
+function handleEquip(pyodide: PyodideInterface, itemProxy: PyDict) {
+  const itemJs = itemProxy.toJs({ dict_converter: Object.fromEntries }) as Item;
+  itemProxy.destroy();
+
+  const store = useGameStore.getState();
+  const { inventory, equipped } = store.player;
+  const idx = inventory.findIndex((i) => i.name === itemJs.name);
+  if (idx === -1) {
+    throw new Error(
+      `${String(itemJs.name ?? "that item")} isn't in your inventory. Pick something from ` +
+        `inventory, e.g. equip(inventory[0]).`,
+    );
+  }
+  const nextInventory = inventory.filter((_, i) => i !== idx);
+  if (equipped) nextInventory.push(equipped);
+  store.setGear(nextInventory, itemJs);
+
+  // Keep this script's own globals in sync so code right after equip() —
+  // in the same submission — sees the new gear immediately.
+  pyodide.globals.set("equipped", pyodide.toPy(itemJs));
+  pyodide.globals.set("inventory", pyodide.toPy(nextInventory));
+  const playerProxy = pyodide.globals.get("player");
+  if (playerProxy) {
+    const derived = useGameStore.getState().player;
+    playerProxy.set("base_attack", derived.base_attack);
+    playerProxy.set("element", derived.element);
+    playerProxy.destroy();
+  }
+
+  return pyodide.toPy(itemJs);
+}
+
+function syncStateFromGlobals(pyodide: PyodideInterface) {
+  const store = useGameStore.getState();
+
   const player = pyodide.globals.get("player");
-  if (!player) return;
-  const hp = player.get("hp");
-  const gold = player.get("gold");
-  player.destroy();
-  useGameStore.getState().syncPlayer({
-    hp: typeof hp === "number" ? hp : useGameStore.getState().player.hp,
-    gold: typeof gold === "number" ? gold : useGameStore.getState().player.gold,
-  });
+  if (player) {
+    const hp = player.get("hp");
+    const gold = player.get("gold");
+    player.destroy();
+    store.syncPlayer({
+      hp: typeof hp === "number" ? hp : store.player.hp,
+      gold: typeof gold === "number" ? gold : store.player.gold,
+    });
+  }
+
+  const inventoryProxy: PyDict | undefined = pyodide.globals.get("inventory");
+  const equippedProxy: PyDict | undefined = pyodide.globals.get("equipped");
+  if (inventoryProxy || equippedProxy) {
+    const inventory = inventoryProxy
+      ? (inventoryProxy.toJs({ dict_converter: Object.fromEntries }) as Item[])
+      : store.player.inventory;
+    const equipped = equippedProxy
+      ? (equippedProxy.toJs({ dict_converter: Object.fromEntries }) as Item)
+      : store.player.equipped;
+    inventoryProxy?.destroy();
+    equippedProxy?.destroy();
+    store.setGear(inventory, equipped ?? null);
+  }
 }
 
 function safeDeleteGlobal(pyodide: PyodideInterface, name: string) {
@@ -145,6 +208,8 @@ function safeDeleteGlobal(pyodide: PyodideInterface, name: string) {
 function primeRoomGlobals(pyodide: PyodideInterface, room: RoomData) {
   const player = useGameStore.getState().player;
   pyodide.globals.set("player", playerToPy(pyodide, player));
+  pyodide.globals.set("inventory", pyodide.toPy(player.inventory));
+  pyodide.globals.set("equipped", pyodide.toPy(player.equipped));
   pyodide.runPython("crafted_item = None");
 
   safeDeleteGlobal(pyodide, "enemy");
@@ -202,7 +267,7 @@ export async function executeCode(code: string): Promise<void> {
     }
   }
 
-  syncPlayerFromGlobals(pyodide);
+  syncStateFromGlobals(pyodide);
 
   const latestPlayer = useGameStore.getState().player;
   if (latestPlayer.hp <= 0) {

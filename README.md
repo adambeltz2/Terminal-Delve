@@ -16,6 +16,12 @@ solve with actual code, executed instantly in your browser.
   there's no single "correct" script.
 - Permadeath resets your character on death, but your **Scribe's Journal**
   (markdown notes) and any scripts you saved survive into the next run.
+- Forged loot lands in a real `inventory` list — it never auto-equips.
+  Swapping gear is its own explicit action: `equip(inventory[i])` pulls an
+  item out of the bag, wields it, and puts whatever was equipped back in
+  the bag. `inventory` is a plain Python list the whole time, so filtering
+  it ("give me anything with a fire modifier") is just a list comprehension,
+  not a special API.
 
 ## Curriculum ladder
 
@@ -67,9 +73,9 @@ src/
     data.ts      enemy templates, item/rune tables, ascii art
     dungeon.ts   the room roll table + hint text per room type
     store.ts     zustand store: run state, journal, saved scripts
-    runner.ts    Pyodide bootstrapping, globals bridging, door.open()
+    runner.ts    Pyodide bootstrapping, globals bridging, door.open()/equip()
     hooks.ts     usePyodideBoot — loads the runtime when a run starts
-  components/    CRT-styled UI (terminal, room view, journal, etc.)
+  components/    CRT-styled UI (terminal, room view, journal, inventory)
 ```
 
 ## Current scope (MVP)
@@ -84,6 +90,8 @@ src/
   refresh mid-run currently starts a fresh delve. Journal/scripts/death
   count are the only things persisted to `localStorage`.
 
-Not yet built: inventory management beyond a single equipped item (no
-carrying multiple weapons or swapping gear mid-run), and Dropbox (or any)
-cross-device sync — local storage only for now, by design, for this MVP.
+- Inventory is a single equipped slot plus an unbounded carried list —
+  no weight/capacity limits, no selling/dropping items yet.
+
+Not yet built: Dropbox (or any) cross-device sync — local storage only
+for now, by design, for this MVP.
