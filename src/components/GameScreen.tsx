@@ -4,6 +4,7 @@ import { usePyodideBoot } from "../game/hooks";
 import { StatusBar } from "./StatusBar";
 import { RoomView } from "./RoomView";
 import { HintPanel } from "./HintPanel";
+import { InventoryPanel } from "./InventoryPanel";
 import { CodeConsole } from "./CodeConsole";
 import { JournalPanel } from "./JournalPanel";
 
@@ -28,6 +29,7 @@ export function GameScreen() {
         <div style={{ flex: "1 1 40%", display: "flex", flexDirection: "column", gap: "0.75rem", minHeight: 0 }}>
           <RoomView />
           <HintPanel />
+          <InventoryPanel />
           <button className="td-btn" onClick={() => setJournalOpen(true)}>
             open scribe&apos;s journal
           </button>

@@ -29,6 +29,21 @@ function uid(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
+/** base_attack/element are always derived from whatever is equipped —
+ * recomputed any time equipped gear changes, whether through the equip()
+ * bridge or the player mutating the `equipped` dict directly in Python. */
+function deriveStats(equipped: Item | null): { base_attack: number; element: string | null } {
+  if (!equipped) return { base_attack: 5, element: null };
+  const appliedRunes = Array.isArray(equipped.applied_runes)
+    ? (equipped.applied_runes as Item[])
+    : null;
+  const bonusValue =
+    equipped.value ?? appliedRunes?.reduce((sum, r) => sum + (Number(r.value) || 0), 0) ?? 0;
+  const element =
+    (equipped.modifier as string) ?? (appliedRunes?.[0]?.modifier as string) ?? null;
+  return { base_attack: (equipped.base_damage ?? 5) + bonusValue, element };
+}
+
 type Phase = "title" | "running" | "dead" | "cleared";
 
 interface GameState {
@@ -45,7 +60,8 @@ interface GameState {
   restartAfterDeath: () => void;
   appendLog: (kind: RunLogLine["kind"], text: string) => void;
   syncPlayer: (patch: Partial<PlayerState>) => void;
-  applyCraftedItem: (item: Item) => void;
+  addToInventory: (item: Item) => void;
+  setGear: (inventory: Item[], equipped: Item | null) => void;
   markRoomResolved: () => void;
   advanceRoom: () => RoomData;
   playerDied: () => void;
@@ -96,21 +112,13 @@ export const useGameStore = create<GameState>()(
       syncPlayer: (patch) =>
         set((s) => ({ player: { ...s.player, ...patch } })),
 
-      applyCraftedItem: (item) =>
-        set((s) => {
-          const inventory = s.player.equipped
-            ? [...s.player.inventory, s.player.equipped]
-            : [...s.player.inventory];
-          return {
-            player: {
-              ...s.player,
-              equipped: item,
-              inventory,
-              base_attack: (item.base_damage ?? s.player.base_attack) + (item.value ?? 0),
-              element: (item.modifier as string) ?? null,
-            },
-          };
-        }),
+      addToInventory: (item) =>
+        set((s) => ({ player: { ...s.player, inventory: [...s.player.inventory, item] } })),
+
+      setGear: (inventory, equipped) =>
+        set((s) => ({
+          player: { ...s.player, inventory, equipped, ...deriveStats(equipped) },
+        })),
 
       markRoomResolved: () =>
         set((s) => (s.currentRoom ? { currentRoom: { ...s.currentRoom, resolved: true } } : {})),
