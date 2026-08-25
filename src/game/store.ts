@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { rollRoom } from "./dungeon";
+import { buildTutorialRoom, TUTORIAL_STEPS } from "./tutorial";
 import type {
   Item,
   JournalEntry,
@@ -44,7 +45,7 @@ function deriveStats(equipped: Item | null): { base_attack: number; element: str
   return { base_attack: (equipped.base_damage ?? 5) + bonusValue, element };
 }
 
-type Phase = "title" | "running" | "dead" | "cleared";
+type Phase = "title" | "tutorial" | "running" | "dead" | "cleared";
 
 interface GameState {
   phase: Phase;
@@ -55,14 +56,20 @@ interface GameState {
   journal: JournalEntry[];
   scripts: SavedScript[];
   deathCount: number;
+  tutorialIndex: number;
+  tutorialDone: boolean;
 
   startRun: () => void;
   restartAfterDeath: () => void;
+  startTutorial: () => void;
+  skipTutorial: () => void;
   appendLog: (kind: RunLogLine["kind"], text: string) => void;
   syncPlayer: (patch: Partial<PlayerState>) => void;
   addToInventory: (item: Item) => void;
   setGear: (inventory: Item[], equipped: Item | null) => void;
   markRoomResolved: () => void;
+  /** Advances to the next tutorial lesson while phase is "tutorial", or
+   * rolls the next dungeon room otherwise — same call site either way. */
   advanceRoom: () => RoomData;
   playerDied: () => void;
 
@@ -83,6 +90,8 @@ export const useGameStore = create<GameState>()(
       journal: [],
       scripts: [],
       deathCount: 0,
+      tutorialIndex: 0,
+      tutorialDone: false,
 
       startRun: () => {
         const depth = 1;
@@ -106,6 +115,26 @@ export const useGameStore = create<GameState>()(
         get().startRun();
       },
 
+      startTutorial: () => {
+        set({
+          phase: "tutorial",
+          tutorialIndex: 0,
+          currentRoom: buildTutorialRoom(0),
+          log: [
+            {
+              id: uid(),
+              kind: "system",
+              text: "A short walkthrough before the real delve — 7 quick lessons.",
+            },
+          ],
+        });
+      },
+
+      skipTutorial: () => {
+        set({ tutorialDone: true });
+        get().startRun();
+      },
+
       appendLog: (kind, text) =>
         set((s) => ({ log: [...s.log, { id: uid(), kind, text }] })),
 
@@ -124,6 +153,17 @@ export const useGameStore = create<GameState>()(
         set((s) => (s.currentRoom ? { currentRoom: { ...s.currentRoom, resolved: true } } : {})),
 
       advanceRoom: () => {
+        if (get().phase === "tutorial") {
+          const nextIndex = get().tutorialIndex + 1;
+          if (nextIndex < TUTORIAL_STEPS.length) {
+            const room = buildTutorialRoom(nextIndex);
+            set({ tutorialIndex: nextIndex, currentRoom: room });
+            return room;
+          }
+          set({ tutorialDone: true });
+          get().startRun();
+          return get().currentRoom as RoomData;
+        }
         const depth = get().depth + 1;
         const room = rollRoom(depth);
         set({ depth, currentRoom: room });
@@ -165,6 +205,7 @@ export const useGameStore = create<GameState>()(
         journal: s.journal,
         scripts: s.scripts,
         deathCount: s.deathCount,
+        tutorialDone: s.tutorialDone,
       }),
     },
   ),

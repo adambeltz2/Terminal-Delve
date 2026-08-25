@@ -24,7 +24,11 @@ function uid(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-function rollRoomType(depth: number): RoomType {
+/** Procedural generation only ever rolls these — "tutorial" rooms are a
+ * fixed, hand-authored sequence built separately (see tutorial.ts). */
+type DungeonRoomType = Exclude<RoomType, "tutorial">;
+
+function rollRoomType(depth: number): DungeonRoomType {
   if (depth > 0 && depth % BOSS_INTERVAL === 0) return "boss";
   const roll = Math.random();
   if (roll < 0.55) return "combat";
