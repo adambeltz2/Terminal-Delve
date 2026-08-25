@@ -4,6 +4,9 @@ A web-based, turn-based roguelike dungeon crawler with retro ASCII graphics
 that teaches real Python by making you write it. Every room is a puzzle you
 solve with actual code, executed instantly in your browser.
 
+**[Play it now](https://adambeltz2.github.io/Terminal-Delve/)** — runs
+entirely in your browser, nothing to install.
+
 ## Python tutorial
 
 First visit defaults to a 7-lesson walkthrough before the real delve —
