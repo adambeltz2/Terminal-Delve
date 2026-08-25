@@ -101,13 +101,20 @@ export const useGameStore = create<GameState>()(
           const inventory = s.player.equipped
             ? [...s.player.inventory, s.player.equipped]
             : [...s.player.inventory];
+          const appliedRunes = Array.isArray(item.applied_runes)
+            ? (item.applied_runes as Item[])
+            : null;
+          const bonusValue =
+            item.value ?? appliedRunes?.reduce((sum, r) => sum + (Number(r.value) || 0), 0) ?? 0;
+          const element =
+            (item.modifier as string) ?? (appliedRunes?.[0]?.modifier as string) ?? null;
           return {
             player: {
               ...s.player,
               equipped: item,
               inventory,
-              base_attack: (item.base_damage ?? s.player.base_attack) + (item.value ?? 0),
-              element: (item.modifier as string) ?? null,
+              base_attack: (item.base_damage ?? s.player.base_attack) + bonusValue,
+              element,
             },
           };
         }),

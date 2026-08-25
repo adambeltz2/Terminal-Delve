@@ -72,11 +72,7 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-export function rollEnemy(depth: number, boss: boolean): Enemy {
-  const pool = ENEMY_TEMPLATES.filter(
-    (t) => !!t.boss === boss && depth >= t.minDepth && depth <= t.maxDepth,
-  );
-  const template = pick(pool.length ? pool : ENEMY_TEMPLATES.filter((t) => !!t.boss === boss));
+function instantiate(template: EnemyTemplate, depth: number): Enemy {
   const scale = Math.floor(depth / 2);
   return {
     name: template.name,
@@ -86,6 +82,33 @@ export function rollEnemy(depth: number, boss: boolean): Enemy {
     weakness: template.weakness,
     ascii: ENEMY_ASCII[template.key].trim(),
   };
+}
+
+export function rollEnemy(depth: number, boss: boolean): Enemy {
+  const pool = ENEMY_TEMPLATES.filter(
+    (t) => !!t.boss === boss && depth >= t.minDepth && depth <= t.maxDepth,
+  );
+  const template = pick(pool.length ? pool : ENEMY_TEMPLATES.filter((t) => !!t.boss === boss));
+  return instantiate(template, depth);
+}
+
+/** A simultaneous pack of `count` regular enemies. `varied` biases toward
+ * distinct weaknesses so a single if/elif can't cover the whole pack —
+ * that's what pushes players toward a loop instead of copy-pasted branches. */
+export function rollEnemyPack(depth: number, count: number, varied: boolean): Enemy[] {
+  const pool = ENEMY_TEMPLATES.filter((t) => !t.boss && depth >= t.minDepth && depth <= t.maxDepth);
+  const source = pool.length ? pool : ENEMY_TEMPLATES.filter((t) => !t.boss);
+  const chosen: EnemyTemplate[] = [];
+  for (let i = 0; i < count; i++) {
+    if (varied) {
+      const usedWeaknesses = new Set(chosen.map((t) => t.weakness));
+      const fresh = source.filter((t) => !usedWeaknesses.has(t.weakness));
+      chosen.push(pick(fresh.length ? fresh : source));
+    } else {
+      chosen.push(pick(source));
+    }
+  }
+  return chosen.map((t) => instantiate(t, depth));
 }
 
 interface BaseItemTemplate {
@@ -114,13 +137,21 @@ const RUNES: RuneTemplate[] = [
   { name: "rune_of_light", modifier: "holy", value: 7 },
 ];
 
-export function rollLoot(depth: number): { base_item: Item; rune: Item } {
-  const base = pick(BASE_ITEMS);
-  const rune = pick(RUNES);
+export function rollLoot(depth: number, runeCount: number): { base_item: Item; runes: Item[] } {
+  const eligible = BASE_ITEMS.filter((b) => b.sockets >= runeCount);
+  const base = pick(eligible.length ? eligible : BASE_ITEMS);
   const scale = Math.floor(depth / 3);
+  const usedModifiers = new Set<string>();
+  const runes: Item[] = [];
+  for (let i = 0; i < runeCount; i++) {
+    const fresh = RUNES.filter((r) => !usedModifiers.has(r.modifier));
+    const rune = pick(fresh.length ? fresh : RUNES);
+    usedModifiers.add(rune.modifier);
+    runes.push({ name: rune.name, modifier: rune.modifier, value: rune.value + scale });
+  }
   return {
     base_item: { name: base.name, base_damage: base.base_damage + scale, sockets: base.sockets },
-    rune: { name: rune.name, modifier: rune.modifier, value: rune.value + scale },
+    runes,
   };
 }
 

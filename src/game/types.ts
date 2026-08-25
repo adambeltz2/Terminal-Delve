@@ -30,28 +30,27 @@ export interface PlayerState {
   equipped: Item | null;
 }
 
+/**
+ * Always a list, even for a single foe — tier1-2 rooms just always have
+ * length 1. The Python surface (singular `enemy` dict vs plural `enemies`
+ * list) is decided by the runner off this array's length, which is how
+ * "when do lists show up" is gated by depth rather than by room type.
+ */
 export interface CombatRoomData {
-  enemy: Enemy;
+  enemies: Enemy[];
 }
 
+/** Same idea as CombatRoomData: runes.length is 1 pre-tier3, 2+ after. */
 export interface LootRoomData {
   base_item: Item;
-  rune: Item;
+  runes: Item[];
 }
 
 export interface RestRoomData {
   heal_amount: number;
 }
 
-export interface BossRoomData {
-  enemy: Enemy;
-}
-
-export type RoomPayload =
-  | CombatRoomData
-  | LootRoomData
-  | RestRoomData
-  | BossRoomData;
+export type RoomPayload = CombatRoomData | LootRoomData | RestRoomData;
 
 export interface RoomData {
   id: string;

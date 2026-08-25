@@ -1,6 +1,6 @@
 import { loadPyodide, type PyodideInterface } from "pyodide";
 import { useGameStore } from "./store";
-import type { Enemy, Item, PlayerState, RoomData } from "./types";
+import type { CombatRoomData, Item, LootRoomData, PlayerState, RoomData } from "./types";
 
 let pyodidePromise: Promise<PyodideInterface> | null = null;
 let stdoutSink: (line: string) => void = () => {};
@@ -16,8 +16,12 @@ door = _Door()
 function doorLockedMessage(room: RoomData): string {
   switch (room.type) {
     case "combat":
-    case "boss":
-      return "The door won't budge — something is still standing between you and it. (enemy['hp'] is still above 0)";
+    case "boss": {
+      const pack = (room.data as CombatRoomData).enemies.length > 1;
+      return pack
+        ? "The door won't budge — some of them are still standing. (every enemy in enemies needs hp <= 0)"
+        : "The door won't budge — something is still standing between you and it. (enemy['hp'] is still above 0)";
+    }
     case "loot":
       return "The door won't budge — you haven't forged anything yet. Assign your merged dict to crafted_item.";
     case "rest":
@@ -29,6 +33,14 @@ function checkResolved(room: RoomData, pyodide: PyodideInterface): boolean {
   switch (room.type) {
     case "combat":
     case "boss": {
+      const pack = (room.data as CombatRoomData).enemies.length > 1;
+      if (pack) {
+        const enemies = pyodide.globals.get("enemies");
+        if (!enemies) return false;
+        const list = enemies.toJs({ dict_converter: Object.fromEntries }) as Array<{ hp: number }>;
+        enemies.destroy();
+        return list.length > 0 && list.every((e) => e.hp <= 0);
+      }
       const enemy = pyodide.globals.get("enemy");
       if (!enemy) return false;
       const hp = enemy.get("hp");
@@ -36,11 +48,19 @@ function checkResolved(room: RoomData, pyodide: PyodideInterface): boolean {
       return typeof hp === "number" && hp <= 0;
     }
     case "loot": {
+      const runeCount = (room.data as LootRoomData).runes.length;
       const crafted = pyodide.globals.get("crafted_item");
       if (!crafted) return false;
+      const hasDamage = crafted.get("base_damage") != null;
+      if (runeCount > 1) {
+        const appliedRaw = crafted.get("applied_runes");
+        const applied = appliedRaw?.toJs ? (appliedRaw.toJs() as unknown[]) : appliedRaw;
+        appliedRaw?.destroy?.();
+        crafted.destroy();
+        return hasDamage && Array.isArray(applied) && applied.length >= runeCount;
+      }
       const hasModifier = crafted.get("modifier") != null;
       const hasValue = crafted.get("value") != null;
-      const hasDamage = crafted.get("base_damage") != null;
       crafted.destroy();
       return hasModifier && hasValue && hasDamage;
     }
@@ -127,20 +147,28 @@ function primeRoomGlobals(pyodide: PyodideInterface, room: RoomData) {
   pyodide.globals.set("player", playerToPy(pyodide, player));
   pyodide.runPython("crafted_item = None");
 
+  safeDeleteGlobal(pyodide, "enemy");
+  safeDeleteGlobal(pyodide, "enemies");
   if (room.type === "combat" || room.type === "boss") {
-    const enemy = (room.data as { enemy: Enemy }).enemy;
-    pyodide.globals.set("enemy", pyodide.toPy(enemy));
-  } else {
-    safeDeleteGlobal(pyodide, "enemy");
+    const { enemies } = room.data as CombatRoomData;
+    if (enemies.length > 1) {
+      pyodide.globals.set("enemies", pyodide.toPy(enemies));
+    } else {
+      pyodide.globals.set("enemy", pyodide.toPy(enemies[0]));
+    }
   }
 
+  safeDeleteGlobal(pyodide, "base_item");
+  safeDeleteGlobal(pyodide, "rune");
+  safeDeleteGlobal(pyodide, "runes");
   if (room.type === "loot") {
-    const { base_item, rune } = room.data as { base_item: Item; rune: Item };
+    const { base_item, runes } = room.data as LootRoomData;
     pyodide.globals.set("base_item", pyodide.toPy(base_item));
-    pyodide.globals.set("rune", pyodide.toPy(rune));
-  } else {
-    safeDeleteGlobal(pyodide, "base_item");
-    safeDeleteGlobal(pyodide, "rune");
+    if (runes.length > 1) {
+      pyodide.globals.set("runes", pyodide.toPy(runes));
+    } else {
+      pyodide.globals.set("rune", pyodide.toPy(runes[0]));
+    }
   }
 
   if (room.type === "rest") {

@@ -1,14 +1,29 @@
-import { ROOM_ASCII, rollEnemy, rollLoot } from "./data";
-import type { RoomData, RoomType } from "./types";
+import { ROOM_ASCII, rollEnemy, rollEnemyPack, rollLoot } from "./data";
+import type { Enemy, RoomData, RoomType } from "./types";
 
 export const BOSS_INTERVAL = 5;
+
+export type Tier = 1 | 2 | 3 | 4;
+
+/**
+ * The Python concepts a room leans on, by depth:
+ *   1 (depth 1-3):  variables, if/elif, a single dict
+ *   2 (depth 4-6):  while/for loops, still a single dict
+ *   3 (depth 7-9):  lists of dicts (packs of enemies, multiple runes)
+ *   4 (depth 10+):  same lists, but sized to make a reusable function
+ *                   worth writing instead of copy-pasting a fight 4 times
+ */
+export function tierForDepth(depth: number): Tier {
+  if (depth <= 3) return 1;
+  if (depth <= 6) return 2;
+  if (depth <= 9) return 3;
+  return 4;
+}
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-/** Weighted roll table, à la a solo-crawler room deck — combat is the most
- * common draw, loot and rest are rarer breathers. */
 function rollRoomType(depth: number): RoomType {
   if (depth > 0 && depth % BOSS_INTERVAL === 0) return "boss";
   const roll = Math.random();
@@ -17,8 +32,8 @@ function rollRoomType(depth: number): RoomType {
   return "rest";
 }
 
-function combatHint(depth: number): string {
-  if (depth <= 3) {
+function combatHint(tier: Tier): string {
+  if (tier === 1) {
     return [
       "The enemy dict has a 'weakness' key. Your player dict has 'element'.",
       "If they match, doubling your damage before you subtract it from",
@@ -28,37 +43,88 @@ function combatHint(depth: number): string {
       "...     dmg = player['base_attack'] * 2",
     ].join("\n");
   }
+  if (tier === 2) {
+    return [
+      "This one won't drop in a single hit. Loop while both sides are",
+      "alive, mutate enemy['hp'] and player['hp'] each pass, and break",
+      "out (or let the loop condition catch it) once someone hits 0.",
+      "",
+      ">>> while enemy['hp'] > 0 and player['hp'] > 0:",
+      "...     dmg = player['base_attack']",
+      "...     if player['element'] == enemy['weakness']:",
+      "...         dmg *= 2",
+      "...     enemy['hp'] -= dmg",
+      "...     if enemy['hp'] <= 0: break",
+      "...     player['hp'] -= enemy['attack']",
+    ].join("\n");
+  }
+  if (tier === 3) {
+    return [
+      "A pack. `enemies` is now a LIST of dicts, not one dict — loop over",
+      "it, and run the same fight-until-dead logic against each member.",
+      "",
+      ">>> for foe in enemies:",
+      "...     while foe['hp'] > 0 and player['hp'] > 0:",
+      "...         dmg = player['base_attack']",
+      "...         if player['element'] == foe['weakness']:",
+      "...             dmg *= 2",
+      "...         foe['hp'] -= dmg",
+      "...         if foe['hp'] <= 0: break",
+      "...         player['hp'] -= foe['attack']",
+    ].join("\n");
+  }
   return [
-    "This one won't drop in a single hit. Loop while both sides are",
-    "alive, mutate enemy['hp'] and player['hp'] each pass, and break",
-    "out (or let the loop condition catch it) once someone hits 0.",
+    "Several foes, each wanting the same fight loop. Writing that loop",
+    "body out per enemy gets old fast — pull it into a function that",
+    "takes one enemy dict, then call it once per entry in `enemies`.",
     "",
-    ">>> while enemy['hp'] > 0 and player['hp'] > 0:",
-    "...     dmg = player['base_attack']",
-    "...     if player['element'] == enemy['weakness']:",
-    "...         dmg *= 2",
-    "...     enemy['hp'] -= dmg",
-    "...     if enemy['hp'] <= 0: break",
-    "...     player['hp'] -= enemy['attack']",
+    ">>> def fight(foe):",
+    "...     while foe['hp'] > 0 and player['hp'] > 0:",
+    "...         dmg = player['base_attack']",
+    "...         if player['element'] == foe['weakness']:",
+    "...             dmg *= 2",
+    "...         foe['hp'] -= dmg",
+    "...         if foe['hp'] <= 0: break",
+    "...         player['hp'] -= foe['attack']",
+    "...",
+    ">>> for foe in enemies:",
+    "...     fight(foe)",
   ].join("\n");
 }
 
-function lootHint(): string {
+function lootHint(tier: Tier, runeCount: number): string {
+  if (runeCount <= 1) {
+    return [
+      "base_item and rune are both plain dicts. Write a function that",
+      "takes them and returns a NEW dict combining their properties,",
+      "then assign the result to a variable named crafted_item.",
+      "",
+      ">>> def forge_item(base, rune):",
+      "...     item = dict(base)",
+      "...     item['modifier'] = rune['modifier']",
+      "...     item['value'] = rune['value']",
+      "...     item['sockets'] = base['sockets'] - 1",
+      "...     item['name'] = 'runed_' + base['name']",
+      "...     return item",
+      "...",
+      ">>> crafted_item = forge_item(base_item, rune)",
+    ].join("\n");
+  }
   return [
-    "base_item and rune are both plain dicts. Write a function that",
-    "takes them and returns a NEW dict combining their properties,",
-    "then assign the result to a variable named crafted_item.",
+    `runes is now a LIST of ${runeCount} dicts — this weapon has ${runeCount} sockets to fill.`,
+    "Build crafted_item from base_item, then loop over runes and record",
+    "each one you socket into a list under the 'applied_runes' key.",
+    tier >= 4 ? "(A list comprehension works here too, not just a loop.)" : "",
     "",
-    ">>> def forge_item(base, rune):",
-    "...     item = dict(base)",
-    "...     item['modifier'] = rune['modifier']",
-    "...     item['value'] = rune['value']",
-    "...     item['sockets'] = base['sockets'] - 1",
-    "...     item['name'] = 'runed_' + base['name']",
-    "...     return item",
-    "...",
-    ">>> crafted_item = forge_item(base_item, rune)",
-  ].join("\n");
+    ">>> crafted_item = dict(base_item)",
+    ">>> crafted_item['applied_runes'] = []",
+    ">>> for rune in runes:",
+    "...     crafted_item['applied_runes'].append(rune)",
+    ">>> crafted_item['modifier'] = runes[0]['modifier']",
+    ">>> crafted_item['value'] = sum(r['value'] for r in runes)",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function restHint(): string {
@@ -70,52 +136,101 @@ function restHint(): string {
   ].join("\n");
 }
 
+function packSize(tier: Tier): number {
+  if (tier === 3) return Math.random() < 0.5 ? 2 : 3;
+  return Math.random() < 0.5 ? 3 : 4;
+}
+
+/** Lays enemy ascii blocks side by side (row by row), not stacked end to end. */
+function combineAscii(enemies: Enemy[]): string {
+  const blocks = enemies.map((e) => e.ascii.split("\n"));
+  const widths = blocks.map((lines) => Math.max(...lines.map((l) => l.length)));
+  const rowCount = Math.max(...blocks.map((lines) => lines.length));
+  const rows: string[] = [];
+  for (let row = 0; row < rowCount; row++) {
+    rows.push(
+      blocks
+        .map((lines, i) => (lines[row] ?? "").padEnd(widths[i]))
+        .join("   ")
+        .trimEnd(),
+    );
+  }
+  return rows.join("\n");
+}
+
+function combatRoom(depth: number, tier: Tier, boss: boolean): RoomData {
+  let enemies: Enemy[];
+  if (boss) {
+    enemies = [rollEnemy(depth, true)];
+  } else if (tier >= 3) {
+    enemies = rollEnemyPack(depth, packSize(tier), tier >= 4);
+  } else {
+    enemies = [rollEnemy(depth, false)];
+  }
+
+  const names = enemies.map((e) => e.name);
+  const isPack = enemies.length > 1;
+  const title = boss
+    ? `${names[0]} awaits`
+    : isPack
+      ? `${enemies.length} foes block the way: ${names.join(", ")}`
+      : `${names[0]} blocks the way`;
+  const flavor = boss
+    ? `${names[0]} rises to full height. ${enemies[0].hp} HP, ${enemies[0].attack} attack. This is the depth's guardian.`
+    : isPack
+      ? `${enemies.length} enemies square off against you: ${enemies
+          .map((e) => `${e.name} (${e.hp} hp, weak to ${e.weakness})`)
+          .join("; ")}.`
+      : `A ${names[0]} snarls from the dark. It has ${enemies[0].hp} HP and hits for ${enemies[0].attack}.`;
+  const ascii = boss ? `${ROOM_ASCII.boss_gate}\n\n${enemies[0].ascii}` : combineAscii(enemies);
+
+  return {
+    id: uid(),
+    depth,
+    type: boss ? "boss" : "combat",
+    title,
+    ascii,
+    flavor,
+    hint: combatHint(tier),
+    data: { enemies },
+    resolved: false,
+  };
+}
+
+function lootRoom(depth: number, tier: Tier): RoomData {
+  const runeCount = tier >= 3 ? 2 : 1;
+  const { base_item, runes } = rollLoot(depth, runeCount);
+  const flavor =
+    runes.length > 1
+      ? `You find ${base_item.name} (base_damage ${base_item.base_damage}, ${base_item.sockets} sockets) and ${runes.length} runes: ${runes
+          .map((r) => `${r.name} (+${r.value} ${r.modifier})`)
+          .join(", ")}.`
+      : `You find ${base_item.name} (base_damage ${base_item.base_damage}, ${base_item.sockets} socket(s)) and ${runes[0].name} (+${runes[0].value} ${runes[0].modifier}).`;
+
+  return {
+    id: uid(),
+    depth,
+    type: "loot",
+    title: "A glint in the rubble",
+    ascii: ROOM_ASCII.entry,
+    flavor,
+    hint: lootHint(tier, runes.length),
+    data: { base_item, runes },
+    resolved: false,
+  };
+}
+
 export function rollRoom(depth: number): RoomData {
+  const tier = tierForDepth(depth);
   const type = rollRoomType(depth);
 
   switch (type) {
-    case "combat": {
-      const enemy = rollEnemy(depth, false);
-      return {
-        id: uid(),
-        depth,
-        type,
-        title: `A ${enemy.name} blocks the way`,
-        ascii: enemy.ascii,
-        flavor: `A ${enemy.name} snarls from the dark. It has ${enemy.hp} HP and hits for ${enemy.attack}.`,
-        hint: combatHint(depth),
-        data: { enemy },
-        resolved: false,
-      };
-    }
-    case "boss": {
-      const enemy = rollEnemy(depth, true);
-      return {
-        id: uid(),
-        depth,
-        type,
-        title: `${enemy.name} awaits`,
-        ascii: `${ROOM_ASCII.boss_gate}\n\n${enemy.ascii}`,
-        flavor: `${enemy.name} rises to full height. ${enemy.hp} HP, ${enemy.attack} attack. This is the depth's guardian.`,
-        hint: combatHint(depth),
-        data: { enemy },
-        resolved: false,
-      };
-    }
-    case "loot": {
-      const { base_item, rune } = rollLoot(depth);
-      return {
-        id: uid(),
-        depth,
-        type,
-        title: "A glint in the rubble",
-        ascii: ROOM_ASCII.entry,
-        flavor: `You find ${base_item.name} (base_damage ${base_item.base_damage}, ${base_item.sockets} socket(s)) and ${rune.name} (+${rune.value} ${rune.modifier}).`,
-        hint: lootHint(),
-        data: { base_item, rune },
-        resolved: false,
-      };
-    }
+    case "combat":
+      return combatRoom(depth, tier, false);
+    case "boss":
+      return combatRoom(depth, tier, true);
+    case "loot":
+      return lootRoom(depth, tier);
     case "rest": {
       const heal_amount = 8 + depth;
       return {
