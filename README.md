@@ -109,10 +109,10 @@ src/
   (dict-merge forging, single or multi-rune), rest, boss (every 5th depth).
 - Full reset on death except the Scribe's Journal and saved scripts —
   gear, gold, and depth do not carry over between runs.
-- Run state (current room, HP, inventory) lives in memory only; a page
-  refresh mid-run currently starts a fresh delve. Journal, scripts, death
-  count, and tutorial-completion are the only things persisted to
-  `localStorage`.
+- The whole run persists to `localStorage` — phase, depth, player, current
+  room (including live enemy hp as it drops, synced back after every code
+  run), and the log — so a page refresh resumes exactly where you left
+  off, mid-fight included, instead of restarting the delve.
 
 - Inventory is a single equipped slot plus an unbounded carried list —
   no weight/capacity limits, no selling/dropping items yet.
