@@ -110,8 +110,9 @@ src/
 - Full reset on death except the Scribe's Journal and saved scripts —
   gear, gold, and depth do not carry over between runs.
 - Run state (current room, HP, inventory) lives in memory only; a page
-  refresh mid-run currently starts a fresh delve. Journal/scripts/death
-  count are the only things persisted to `localStorage`.
+  refresh mid-run currently starts a fresh delve. Journal, scripts, death
+  count, and tutorial-completion are the only things persisted to
+  `localStorage`.
 
 - Inventory is a single equipped slot plus an unbounded carried list —
   no weight/capacity limits, no selling/dropping items yet.
