@@ -7,6 +7,7 @@ import type {
   JournalEntry,
   PlayerState,
   RoomData,
+  RoomPayload,
   RunLogLine,
   SavedScript,
 } from "./types";
@@ -68,6 +69,11 @@ interface GameState {
   addToInventory: (item: Item) => void;
   setGear: (inventory: Item[], equipped: Item | null) => void;
   markRoomResolved: () => void;
+  /** Merges into currentRoom.data — used to keep the persisted room in
+   * sync with live combat/forging progress (e.g. enemy hp as it drops),
+   * so a page refresh mid-fight resumes where it left off instead of
+   * resetting the room to full health. */
+  updateRoomData: (patch: Partial<RoomPayload>) => void;
   /** Advances to the next tutorial lesson while phase is "tutorial", or
    * rolls the next dungeon room otherwise — same call site either way. */
   advanceRoom: () => RoomData;
@@ -152,6 +158,13 @@ export const useGameStore = create<GameState>()(
       markRoomResolved: () =>
         set((s) => (s.currentRoom ? { currentRoom: { ...s.currentRoom, resolved: true } } : {})),
 
+      updateRoomData: (patch) =>
+        set((s) =>
+          s.currentRoom
+            ? { currentRoom: { ...s.currentRoom, data: { ...s.currentRoom.data, ...patch } } }
+            : {},
+        ),
+
       advanceRoom: () => {
         if (get().phase === "tutorial") {
           const nextIndex = get().tutorialIndex + 1;
@@ -206,6 +219,15 @@ export const useGameStore = create<GameState>()(
         scripts: s.scripts,
         deathCount: s.deathCount,
         tutorialDone: s.tutorialDone,
+        // In-progress run, so a page refresh resumes instead of resetting
+        // to the title screen. Log is capped so a long run doesn't bloat
+        // localStorage indefinitely.
+        phase: s.phase,
+        depth: s.depth,
+        player: s.player,
+        currentRoom: s.currentRoom,
+        log: s.log.slice(-200),
+        tutorialIndex: s.tutorialIndex,
       }),
     },
   ),

@@ -4,8 +4,23 @@ Reverse-chronological, one entry per merged PR.
 
 ## Unreleased
 
-- Fixed a `localStorage`-persisted-fields doc drift in the README (missing
-  `tutorialDone`); added this changelog and `backlog.md`.
+- **Persist run state across a page refresh.** A refresh used to silently
+  reset any in-progress run back to the title screen. `phase`, `depth`,
+  `player`, `currentRoom`, and a capped `log` now persist to `localStorage`
+  too. Enemy hp is synced back from the live Pyodide globals into the
+  persisted room after every code run (not just on `door.open()`), so a
+  refresh mid-fight resumes with the enemy still damaged instead of
+  re-priming it at full health. Verified with a real mid-combat reload
+  (partial damage survives exactly) and a mid-tutorial reload (same lesson
+  index restored).
+
+## PR #6 — Add CHANGELOG.md and backlog.md; fix a README doc drift
+
+`backlog.md`, required by `CLAUDE.md` section 4, never existed until now —
+populated with the known gaps at the time. Added this changelog,
+reconstructing the shipped history from the merged PRs so far. Fixed a
+`localStorage`-persisted-fields doc drift in the README (missing
+`tutorialDone`) found while auditing docs against source.
 
 ## PR #5 — Update CLAUDE.md section 5 with Terminal Delve's actual tech stack
 

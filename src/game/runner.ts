@@ -3,6 +3,7 @@ import { useGameStore } from "./store";
 import { tutorialLockedMessage } from "./tutorial";
 import type {
   CombatRoomData,
+  Enemy,
   Item,
   LootRoomData,
   PlayerState,
@@ -226,6 +227,28 @@ function syncStateFromGlobals(pyodide: PyodideInterface) {
     inventoryProxy?.destroy();
     equippedProxy?.destroy();
     store.setGear(inventory, equipped ?? null);
+  }
+
+  // Keep the persisted room in sync with live combat progress — otherwise
+  // a page refresh mid-fight would re-prime enemies back at full hp.
+  const room = store.currentRoom;
+  if (room && (room.type === "combat" || room.type === "boss")) {
+    const pack = (room.data as CombatRoomData).enemies.length > 1;
+    if (pack) {
+      const enemiesProxy: PyDict | undefined = pyodide.globals.get("enemies");
+      if (enemiesProxy) {
+        const enemies = enemiesProxy.toJs({ dict_converter: Object.fromEntries }) as Enemy[];
+        enemiesProxy.destroy();
+        store.updateRoomData({ enemies });
+      }
+    } else {
+      const enemyProxy: PyDict | undefined = pyodide.globals.get("enemy");
+      if (enemyProxy) {
+        const enemy = enemyProxy.toJs({ dict_converter: Object.fromEntries }) as Enemy;
+        enemyProxy.destroy();
+        store.updateRoomData({ enemies: [enemy] });
+      }
+    }
   }
 }
 
