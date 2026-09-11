@@ -4,15 +4,37 @@ Reverse-chronological, one entry per merged PR.
 
 ## Unreleased
 
-- **Persist run state across a page refresh.** A refresh used to silently
-  reset any in-progress run back to the title screen. `phase`, `depth`,
-  `player`, `currentRoom`, and a capped `log` now persist to `localStorage`
-  too. Enemy hp is synced back from the live Pyodide globals into the
-  persisted room after every code run (not just on `door.open()`), so a
-  refresh mid-fight resumes with the enemy still damaged instead of
-  re-priming it at full health. Verified with a real mid-combat reload
-  (partial damage survives exactly) and a mid-tutorial reload (same lesson
-  index restored).
+- **Restructure the tutorial into Run / Fill-in-the-blank / Write-it-yourself
+  stages.** Consolidated 7 flat lessons into 6 with an explicit progression:
+  three "run it" lessons (print+variables, dict+if/else combined into one
+  worked example each, then a while loop), one new "fill in the blank"
+  lesson, then "write it yourself" (unchanged in spirit — nothing
+  pre-solved). While building the fill-in-the-blank lesson, caught a real
+  bug in its own starter code: a `while` loop whose only exit condition was
+  the blank the player was meant to fill in would hang the tab in a true
+  infinite loop if run unedited (Pyodide executes on the main thread with
+  no interrupt). Fixed by rebuilding it on a `for step in range(4):` loop
+  that always terminates regardless of the blank, so an unedited run stays
+  safely locked instead of freezing the page. Logged the general version of
+  this risk (any player-written infinite loop, anywhere) in `backlog.md`.
+- **Auto-capture completed lessons into the Scribe's Journal.** Each
+  resolved lesson (except the wrap-up) now saves the actual code that
+  solved it as a journal entry, deduped by title so replaying the tutorial
+  updates the existing note instead of duplicating it.
+- **Expandable split-view Journal.** Added an "expand view" toggle that
+  grows the modal to near-fullscreen with a two-column layout — entries
+  and scripts on the left, a full-size editor on the right — for longer
+  review or writing sessions, alongside the existing compact view.
+## PR #7 — Persist run state across a page refresh
+
+A refresh used to silently reset any in-progress run back to the title
+screen. `phase`, `depth`, `player`, `currentRoom`, and a capped `log` now
+persist to `localStorage` too. Enemy hp is synced back from the live
+Pyodide globals into the persisted room after every code run (not just on
+`door.open()`), so a refresh mid-fight resumes with the enemy still
+damaged instead of re-priming it at full health. Verified with a real
+mid-combat reload (partial damage survives exactly) and a mid-tutorial
+reload (same lesson index restored).
 
 ## PR #6 — Add CHANGELOG.md and backlog.md; fix a README doc drift
 
