@@ -1,6 +1,6 @@
 import { loadPyodide, type PyodideInterface } from "pyodide";
 import { useGameStore } from "./store";
-import { tutorialLockedMessage } from "./tutorial";
+import { TUTORIAL_STEPS, tutorialLockedMessage } from "./tutorial";
 import type {
   CombatRoomData,
   Enemy,
@@ -14,6 +14,10 @@ import type {
 let pyodidePromise: Promise<PyodideInterface> | null = null;
 let stdoutSink: (line: string) => void = () => {};
 let stderrSink: (line: string) => void = () => {};
+/** The code from the current executeCode() call — read by handleDoorOpen
+ * (invoked synchronously mid-script) so a completed tutorial lesson can
+ * save the exact code that solved it into the Scribe's Journal. */
+let lastRunCode = "";
 
 /** Minimal shape we actually use off a PyProxy dict — avoids pulling in
  * pyodide's internal ffi types just for this. */
@@ -140,6 +144,20 @@ async function getPyodide(): Promise<PyodideInterface> {
   return pyodidePromise;
 }
 
+/** Saves a completed tutorial lesson's actual code into the journal so it's
+ * there to review later without repeating the tutorial. Deduped by title —
+ * replaying the tutorial overwrites the earlier note instead of piling up
+ * duplicates. Skips the info-only send-off lesson, which has nothing worth
+ * saving (just a lone door.open()). */
+function saveLessonToJournal(room: RoomData, tutorialIndex: number, code: string) {
+  const step = TUTORIAL_STEPS[tutorialIndex];
+  if (!step || step.stage === "info") return;
+  const store = useGameStore.getState();
+  const existing = store.journal.find((e) => e.title === room.title);
+  const body = ["```python", code.trim(), "```"].join("\n");
+  store.upsertJournalEntry(existing ? existing.id : null, room.title, body);
+}
+
 function handleDoorOpen(pyodide: PyodideInterface) {
   const store = useGameStore.getState();
   const room = store.currentRoom;
@@ -153,6 +171,9 @@ function handleDoorOpen(pyodide: PyodideInterface) {
     const item = crafted.toJs({ dict_converter: Object.fromEntries }) as Item;
     crafted.destroy();
     store.addToInventory(item);
+  }
+  if (room.type === "tutorial") {
+    saveLessonToJournal(room, store.tutorialIndex, lastRunCode);
   }
   store.markRoomResolved();
   store.appendLog("system", "The door creaks open...");
@@ -309,6 +330,7 @@ export async function executeCode(code: string): Promise<void> {
   const pyodide = await getPyodide();
   const store = useGameStore.getState();
 
+  lastRunCode = code;
   stdoutSink = (line) => store.appendLog("stdout", line);
   stderrSink = (line) => store.appendLog("stderr", line);
 

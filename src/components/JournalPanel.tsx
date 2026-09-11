@@ -25,6 +25,7 @@ export function JournalPanel({ onClose, onLoadScript, currentCode }: Props) {
   const saveScript = useGameStore((s) => s.saveScript);
   const deleteScript = useGameStore((s) => s.deleteScript);
 
+  const [large, setLarge] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -51,11 +52,115 @@ export function JournalPanel({ onClose, onLoadScript, currentCode }: Props) {
   }
 
   function exportAll() {
-    const text = journal
-      .map((e) => `# ${e.title}\n\n${e.body}\n`)
-      .join("\n---\n\n");
+    const text = journal.map((e) => `# ${e.title}\n\n${e.body}\n`).join("\n---\n\n");
     downloadText("scribes-journal.md", text || "# Scribe's Journal\n\n(empty)");
   }
+
+  const editorForm = (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", flex: 1, minHeight: 0 }}>
+      <input
+        className="td-input"
+        placeholder="entry title"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+      />
+      <textarea
+        className="td-input"
+        placeholder="markdown notes..."
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        style={large ? { flex: 1, minHeight: 0 } : { minHeight: 100 }}
+      />
+      <div style={{ display: "flex", gap: "0.5rem" }}>
+        <button className="td-btn" onClick={save}>
+          {editingId ? "update entry" : "add entry"}
+        </button>
+        {editingId && (
+          <button className="td-btn" onClick={() => edit(null)}>
+            cancel
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  const notesList = (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+      {journal.map((e) => (
+        <div key={e.id} className="td-panel" style={{ padding: "0.5rem 0.75rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+            <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {e.title}
+            </strong>
+            <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+              <button className="td-btn" style={{ padding: "0.1rem 0.5rem" }} onClick={() => edit(e.id)}>
+                edit
+              </button>
+              <button
+                className="td-btn td-btn-amber"
+                style={{ padding: "0.1rem 0.5rem" }}
+                onClick={() => deleteJournalEntry(e.id)}
+              >
+                delete
+              </button>
+            </div>
+          </div>
+          {!large && (
+            <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.8rem", margin: "0.25rem 0 0" }}>{e.body}</pre>
+          )}
+        </div>
+      ))}
+      {journal.length === 0 && <div style={{ opacity: 0.5, fontSize: "0.85rem" }}>No entries yet.</div>}
+    </div>
+  );
+
+  const scriptsList = (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+      {scripts.map((s) => (
+        <div
+          key={s.id}
+          className="td-panel"
+          style={{ padding: "0.5rem 0.75rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+        >
+          <span>{s.name}</span>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button className="td-btn" style={{ padding: "0.1rem 0.5rem" }} onClick={() => onLoadScript(s.code)}>
+              load into console
+            </button>
+            <button
+              className="td-btn td-btn-amber"
+              style={{ padding: "0.1rem 0.5rem" }}
+              onClick={() => deleteScript(s.id)}
+            >
+              delete
+            </button>
+          </div>
+        </div>
+      ))}
+      {scripts.length === 0 && <div style={{ opacity: 0.5, fontSize: "0.85rem" }}>No saved scripts yet.</div>}
+    </div>
+  );
+
+  const scriptSaveRow = (
+    <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem" }}>
+      <input
+        className="td-input"
+        placeholder="name this script to save current console code"
+        value={scriptName}
+        onChange={(e) => setScriptName(e.target.value)}
+      />
+      <button
+        className="td-btn"
+        disabled={!scriptName.trim() || !currentCode.trim()}
+        onClick={() => {
+          saveScript(scriptName.trim(), currentCode);
+          setScriptName("");
+        }}
+      >
+        save current code
+      </button>
+    </div>
+  );
 
   return (
     <div
@@ -67,18 +172,29 @@ export function JournalPanel({ onClose, onLoadScript, currentCode }: Props) {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        padding: "2rem",
+        padding: large ? "1rem" : "2rem",
       }}
     >
       <div
-        className="td-panel td-scroll"
-        style={{ width: "min(900px, 100%)", maxHeight: "90vh", overflow: "auto", padding: "1.5rem" }}
+        className={large ? "td-panel" : "td-panel td-scroll"}
+        style={{
+          width: large ? "96vw" : "min(900px, 100%)",
+          height: large ? "94vh" : undefined,
+          maxHeight: large ? undefined : "90vh",
+          overflow: large ? "hidden" : "auto",
+          padding: "1.5rem",
+          display: "flex",
+          flexDirection: "column",
+        }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h2 className="td-glow" style={{ color: "var(--td-green)", margin: 0 }}>
             Scribe&apos;s Journal
           </h2>
           <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button className="td-btn" onClick={() => setLarge((v) => !v)}>
+              {large ? "compact view" : "expand view"}
+            </button>
             <button className="td-btn" onClick={exportAll}>
               export .md
             </button>
@@ -88,108 +204,45 @@ export function JournalPanel({ onClose, onLoadScript, currentCode }: Props) {
           </div>
         </div>
         <p style={{ fontSize: "0.8rem", opacity: 0.7 }}>
-          Notes and scripts here survive death. Save mechanics you&apos;ve learned, or reusable
-          code you want at the start of your next run.
+          Notes and scripts here survive death. Completed tutorial lessons save here
+          automatically, alongside mechanics you&apos;ve learned or reusable code you want at
+          the start of your next run.
         </p>
 
-        <section style={{ marginTop: "1rem" }}>
-          <h3 style={{ color: "var(--td-amber)" }}>Notes</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-            {journal.map((e) => (
-              <div key={e.id} className="td-panel" style={{ padding: "0.5rem 0.75rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <strong>{e.title}</strong>
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
-                    <button className="td-btn" style={{ padding: "0.1rem 0.5rem" }} onClick={() => edit(e.id)}>
-                      edit
-                    </button>
-                    <button
-                      className="td-btn td-btn-amber"
-                      style={{ padding: "0.1rem 0.5rem" }}
-                      onClick={() => deleteJournalEntry(e.id)}
-                    >
-                      delete
-                    </button>
-                  </div>
-                </div>
-                <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.8rem", margin: "0.25rem 0 0" }}>{e.body}</pre>
-              </div>
-            ))}
-            {journal.length === 0 && <div style={{ opacity: 0.5, fontSize: "0.85rem" }}>No entries yet.</div>}
-          </div>
-
-          <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-            <input
-              className="td-input"
-              placeholder="entry title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-            <textarea
-              className="td-input"
-              placeholder="markdown notes..."
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              style={{ minHeight: 100 }}
-            />
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-              <button className="td-btn" onClick={save}>
-                {editingId ? "update entry" : "add entry"}
-              </button>
-              {editingId && (
-                <button className="td-btn" onClick={() => edit(null)}>
-                  cancel
-                </button>
-              )}
+        {large ? (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "340px 1fr",
+              gap: "1rem",
+              flex: 1,
+              minHeight: 0,
+            }}
+          >
+            <div className="td-scroll" style={{ overflowY: "auto", paddingRight: "0.25rem" }}>
+              <h3 style={{ color: "var(--td-amber)" }}>Notes</h3>
+              {notesList}
+              <h3 style={{ color: "var(--td-amber)", marginTop: "1.25rem" }}>Saved Scripts</h3>
+              {scriptsList}
+              {scriptSaveRow}
             </div>
+            <div style={{ minHeight: 0, display: "flex" }}>{editorForm}</div>
           </div>
-        </section>
+        ) : (
+          <>
+            <section style={{ marginTop: "1rem" }}>
+              <h3 style={{ color: "var(--td-amber)" }}>Notes</h3>
+              {notesList}
+              <div style={{ marginTop: "0.75rem" }}>{editorForm}</div>
+            </section>
 
-        <section style={{ marginTop: "1.5rem" }}>
-          <h3 style={{ color: "var(--td-amber)" }}>Saved Scripts</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-            {scripts.map((s) => (
-              <div
-                key={s.id}
-                className="td-panel"
-                style={{ padding: "0.5rem 0.75rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-              >
-                <span>{s.name}</span>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button className="td-btn" style={{ padding: "0.1rem 0.5rem" }} onClick={() => onLoadScript(s.code)}>
-                    load into console
-                  </button>
-                  <button
-                    className="td-btn td-btn-amber"
-                    style={{ padding: "0.1rem 0.5rem" }}
-                    onClick={() => deleteScript(s.id)}
-                  >
-                    delete
-                  </button>
-                </div>
-              </div>
-            ))}
-            {scripts.length === 0 && <div style={{ opacity: 0.5, fontSize: "0.85rem" }}>No saved scripts yet.</div>}
-          </div>
-          <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem" }}>
-            <input
-              className="td-input"
-              placeholder="name this script to save current console code"
-              value={scriptName}
-              onChange={(e) => setScriptName(e.target.value)}
-            />
-            <button
-              className="td-btn"
-              disabled={!scriptName.trim() || !currentCode.trim()}
-              onClick={() => {
-                saveScript(scriptName.trim(), currentCode);
-                setScriptName("");
-              }}
-            >
-              save current code
-            </button>
-          </div>
-        </section>
+            <section style={{ marginTop: "1.5rem" }}>
+              <h3 style={{ color: "var(--td-amber)" }}>Saved Scripts</h3>
+              {scriptsList}
+              {scriptSaveRow}
+            </section>
+          </>
+        )}
       </div>
     </div>
   );

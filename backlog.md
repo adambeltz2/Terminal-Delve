@@ -21,3 +21,11 @@ but not implemented on the fly, per `CLAUDE.md` section 4.
   against the *current* room's live globals without manually retyping them
   — "load into console" (`JournalPanel.tsx`) requires clicking, pasting is
   manual. Low priority; current flow works, just not frictionless.
+- [BUG] Pyodide runs synchronously on the main thread with no interrupt
+  mechanism — a player-written infinite loop (in any combat room, or a
+  hand-written tutorial exercise) freezes the whole tab with no recovery
+  short of closing it. Caught and fixed one instance of this baked into a
+  tutorial lesson's own starter code (see PR history), but the underlying
+  risk is inherent to the architecture and not fixed generally. Real fix
+  would mean running Pyodide in a Web Worker with a timeout/interrupt
+  signal. Affected: `src/game/runner.ts` (`getPyodide`, `executeCode`).

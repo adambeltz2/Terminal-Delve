@@ -9,13 +9,18 @@ entirely in your browser, nothing to install.
 
 ## Python tutorial
 
-First visit defaults to a 7-lesson walkthrough before the real delve —
-print, variables, dict access, if/else, a worked while-loop example, then
-one lesson where you write a while loop from scratch (the exact shape
-depth-1 combat needs) with nothing pre-solved. Skippable at any point
-("I already know Python" on the start screen, or "skip to the delve"
-mid-lesson) and replayable later once it's been completed. `tutorialDone`
-persists to `localStorage` so it only defaults to showing once.
+First visit defaults to a 6-lesson walkthrough before the real delve, in
+three explicit stages: **run it** (three pre-filled, watch-and-execute
+lessons — print/variables, dict access + if/else, a worked while loop),
+**fill in the blank** (one line missing from an otherwise-complete
+exercise), then **write it yourself** (nothing pre-solved — the exact
+shape depth-1 combat needs). A closing lesson wraps up. Skippable at any
+point ("I already know Python" on the start screen, or "skip to the
+delve" mid-lesson) and replayable later once it's been completed —
+`tutorialDone` persists to `localStorage` so it only defaults to showing
+once. Every completed lesson (except the wrap-up) auto-saves the code
+that solved it into the Scribe's Journal, so it's there to check back
+against without repeating the tutorial.
 
 ## Core loop
 
@@ -29,6 +34,9 @@ persists to `localStorage` so it only defaults to showing once.
   there's no single "correct" script.
 - Permadeath resets your character on death, but your **Scribe's Journal**
   (markdown notes) and any scripts you saved survive into the next run.
+  It opens as a compact modal by default; "expand view" switches it to a
+  larger split layout (entry/script list on the left, a full-size editor
+  on the right) for longer review or writing sessions.
 - Forged loot lands in a real `inventory` list — it never auto-equips.
   Swapping gear is its own explicit action: `equip(inventory[i])` pulls an
   item out of the bag, wields it, and puts whatever was equipped back in

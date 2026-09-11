@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useGameStore } from "../game/store";
 import { usePyodideBoot } from "../game/hooks";
-import { TUTORIAL_STEPS } from "../game/tutorial";
+import { stageLabel, TUTORIAL_STEPS } from "../game/tutorial";
 import { CodeConsole } from "./CodeConsole";
 
 export function TutorialScreen() {
@@ -47,6 +47,20 @@ export function TutorialScreen() {
           style={{ flex: "1 1 40%", padding: "1rem", overflowY: "auto" }}
         >
           <pre className="td-ascii">{currentRoom.ascii}</pre>
+          {stageLabel(TUTORIAL_STEPS[tutorialIndex]?.stage) && (
+            <span
+              style={{
+                fontSize: "0.7rem",
+                letterSpacing: "0.08em",
+                color: "var(--td-amber)",
+                border: "1px solid var(--td-amber)",
+                borderRadius: "3px",
+                padding: "0.1rem 0.4rem",
+              }}
+            >
+              {stageLabel(TUTORIAL_STEPS[tutorialIndex]?.stage)}
+            </span>
+          )}
           <h2 className="td-glow" style={{ margin: "0.25rem 0", color: "var(--td-green)" }}>
             {currentRoom.title}
           </h2>
